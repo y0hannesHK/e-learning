@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Review" ALTER COLUMN "rating" DROP NOT NULL,
+ALTER COLUMN "comment" DROP NOT NULL;

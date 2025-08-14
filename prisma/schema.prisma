@@ -1,0 +1,205 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  firstName      String?
+  lastName       String?
+  email          String    @unique
+  emailVerified  DateTime?
+  hashedPassword String?
+  image          String?
+
+  role ROLE @default(student)
+
+  accounts Account[]
+  sessions Session[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courses          Course[]
+  enrollments      Enrollment[]
+  certificates     Certificate[]
+  review           Review[]
+  progressTracking ProgressTracking[]
+  subscription     Subscription[]
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model Enrollment {
+  id         String   @id @default(uuid())
+  student    User     @relation(fields: [studentId], references: [id])
+  studentId  String
+  course     Course   @relation(fields: [courseId], references: [id])
+  courseId   String
+  unEnrolled Boolean  @default(false)
+  enrolledAt DateTime @default(now())
+
+  @@unique([studentId, courseId])
+}
+
+enum ROLE {
+  student
+  instructor
+  admin
+}
+
+model Course {
+  id           String   @id @default(uuid())
+  title        String
+  description  String
+  thumbnailUrl String?
+  instructorId String
+  isPaid       Boolean  @default(false)
+  price        Float?
+  createdAt    DateTime @default(now())
+
+  lessons      Lesson[]
+  quizzes      Quiz[]
+  enrollments  Enrollment[]
+  reviews      Review[]
+  certificates Certificate[]
+
+  // Relation to User (instructor)
+  instructor User @relation(fields: [instructorId], references: [id])
+}
+
+model Lesson {
+  id         String   @id @default(uuid())
+  courseId   String
+  title      String
+  videoUrl   String?
+  contents   String[]
+  orderIndex Int
+  createdAt  DateTime @default(now())
+
+  course   Course             @relation(fields: [courseId], references: [id])
+  quiz     Quiz[]
+  progress ProgressTracking[]
+}
+
+model Quiz {
+  id        String   @id @default(uuid())
+  title     String
+  courseId  String? // Nullable
+  lessonId  String? // Nullable
+  createdAt DateTime @default(now())
+
+  course    Course?        @relation(fields: [courseId], references: [id])
+  lesson    Lesson?        @relation(fields: [lessonId], references: [id])
+  questions QuizQuestion[]
+}
+
+model QuizQuestion {
+  id            String   @id @default(uuid())
+  quizId        String
+  question      String
+  choices       String[] // Array of strings
+  correctChoice Int
+  createdAt     DateTime @default(now())
+
+  quiz Quiz @relation(fields: [quizId], references: [id])
+}
+
+model Subscription {
+  id                   String   @id @default(uuid())
+  userId               String
+  stripeSubscriptionId String
+  stripeCustomerId     String
+  status               String
+  currentPeriodEnd     DateTime
+  createdAt            DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model ProgressTracking {
+  id          String    @id @default(uuid())
+  studentId   String
+  lessonId    String
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+
+  student User   @relation(fields: [studentId], references: [id])
+  lesson  Lesson @relation(fields: [lessonId], references: [id])
+
+  @@unique([studentId, lessonId])
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  studentId String
+  courseId  String
+  rating    Int?
+  comment   String?
+  createdAt DateTime @default(now())
+
+  student User   @relation(fields: [studentId], references: [id])
+  course  Course @relation(fields: [courseId], references: [id])
+
+  @@unique([studentId, courseId])
+}
+
+model Certificate {
+  id             String   @id @default(uuid())
+  studentId      String
+  courseId       String
+  issuedAt       DateTime @default(now())
+  certificateUrl String
+
+  student User   @relation(fields: [studentId], references: [id])
+  course  Course @relation(fields: [courseId], references: [id])
+}
